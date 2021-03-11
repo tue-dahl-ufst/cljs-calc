@@ -10,6 +10,9 @@
 (def memory-precision (r/atom 0))
 (def memories (r/atom {}))
 (def new-number? (r/atom true))
+(def history (r/atom []))
+(def opt-to-symbol
+  {/ "/", + "+", - "-", * "*"})
 
 (defn clear []
   (reset! screen 0)
@@ -20,22 +23,36 @@
   (reset! new-number? true))
 
 (defn evaluate []
-  (reset! screen (@opt @memory @screen))
-  (reset! memory nil)
-  (reset! opt nil)
-  (reset! precision (max @precision @memory-precision))
-  (reset! memory-precision 0)
-  (reset! new-number? true))
+  (let [result (@opt @memory @screen)]
+    (swap! history 
+           #(conj % (str (.toFixed @memory (max 0 (dec @memory-precision))) " " 
+                         (opt-to-symbol @opt) " " 
+                         (.toFixed @screen (max 0 (dec @precision))) " = " 
+                         (.toFixed result (max 0 (dec @memory-precision)
+                                               (dec @precision))))))
+    (reset! screen result)
+    (swap! precision (partial max @memory-precision))
+    (reset! memory nil)
+    (reset! memory-precision 0)
+    (reset! opt nil)
+    (reset! new-number? true)))
 
 (defn operator-handler [opt-arg]
   "Returns a function that handles input operator $opt-arg."
   (fn []
     (when (not @new-number?) ;; does nothing if we expect new number
       (when (not (= @opt nil)) ;; if there is a pending operation, do it
-        (reset! screen (@opt @memory @screen))
-        (swap! precision (partial max @memory-precision))
-        (reset! memory nil)
-        (reset! memory-precision 0))
+        (let [result (@opt @memory @screen)]
+          (swap! history 
+                 #(conj % (str (.toFixed @memory (max 0 (dec @memory-precision))) " " 
+                               (opt-to-symbol @opt) " " 
+                               (.toFixed @screen (max 0 (dec @precision))) " = " 
+                               (.toFixed result (max 0 (dec @memory-precision)
+                                                     (dec @precision))))))
+          (reset! screen result)
+          (swap! precision (partial max @memory-precision))
+          (reset! memory nil)
+          (reset! memory-precision 0)))
       (reset! opt opt-arg) ;; no matter what record new operation
       (reset! new-number? true)))) ;; expect a number after this
 (defn number-handler [d]
@@ -91,8 +108,8 @@
       [:tr [:input {:type "button" :value "MEM" :on-click (memory-handler :mem1)}]]
       ]]
    [:ul
-    [:li 1]
-    [:li 2]]
+    (for [string @history]
+      [:li string])]
    ]
   )
 
