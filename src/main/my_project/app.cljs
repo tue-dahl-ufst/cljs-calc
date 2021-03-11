@@ -20,26 +20,24 @@
   (reset! screen (@opt @memory @screen))
   (reset! memory nil)
   (reset! opt nil)
-  (reset! new-number? true)
-  (reset! precision 0))
+  (reset! new-number? true))
 
 (defn opt-run [opt-arg]
   (if (= @opt nil)
     (do (reset! memory @screen)
         (reset! opt opt-arg)
-        (reset! new-number? true)
-        (reset! precision 0))
+        (reset! new-number? true))
     (do (reset! screen (@opt @memory @screen))
         (reset! memory @screen)
         (reset! opt opt-arg)
-        (reset! new-number? true)
-        (reset! precision 0))))
+        (reset! new-number? true))))
 
 (defn number-btn [d]
   [:td [:input 
         {:type "button" :value d :on-click
          #(if @new-number?
             (do (reset! screen d)
+                (reset! precision 0)
                 (reset! new-number? false))
             (if (> @precision 0)
               (do (swap! screen (fn [x] (+ x (/ d (Math/pow 10 @precision)))))
@@ -54,11 +52,8 @@
   [:table {:border "1"}
    [:tbody
     [:tr
-     [:td {:colspan "3"} [:input#result {:readonly "" :type "text" :value (str @screen)}]]
      [:td {:colspan "3"} [:input#result {:readonly "" :type "text" 
-                                         :value (or @memory "nil")}]]
-     [:td {:colspan "3"} [:input#result {:readonly "" :type "text" 
-                                         :value (or @precision "nil")}]]
+                                         :value (.toFixed @screen (max 0 (dec @precision)))}]]
      [:td [:input {:type "button" :value "c" :on-click reset}]]]
     [:tr
      (for [d (range 1 4)] (number-btn d))
@@ -70,7 +65,8 @@
      (for [d (range 7 10)] (number-btn d))
      (operator-btn + "+")]
     [:tr
-     [:td [:input {:type "button" :value "." :on-click #(reset! precision 1)}]]
+     [:td [:input {:type "button" :value "." 
+                   :on-click #(swap! precision (fn [x] (if (> x 0) x 1)))}]]
      (number-btn 0)
      [:td [:input {:type "button" :value "=" :on-click evaluate}]]
      (operator-btn * "*")]]]
