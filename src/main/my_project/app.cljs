@@ -6,47 +6,57 @@
 (def screen (r/atom 0))
 (def memory (r/atom nil))
 (def opt (r/atom nil))
-(def new-number? (r/atom true))
 (def precision (r/atom 0))
+(def memory-precision (r/atom 0))
 
-(defn reset []
-  (reset! memory nil)
+(defn clear []
   (reset! screen 0)
+  (reset! memory nil)
   (reset! opt nil)
-  (reset! new-number? true)
-  (reset! precision 0))
+  (reset! precision 0)
+  (reset! memory-precision 0))
 
 (defn evaluate []
   (reset! screen (@opt @memory @screen))
   (reset! memory nil)
   (reset! opt nil)
-  (reset! new-number? true))
+  (reset! precision (max @precision @memory-precision))
+  (reset! memory-precision 0))
 
-(defn opt-run [opt-arg]
-  (if (= @opt nil)
-    (do (reset! memory @screen)
-        (reset! opt opt-arg)
-        (reset! new-number? true))
-    (do (reset! screen (@opt @memory @screen))
-        (reset! memory @screen)
-        (reset! opt opt-arg)
-        (reset! new-number? true))))
+(defn operator-handler [opt-arg]
+  "Returns a function that handles input operator $opt-arg."
+  (fn []
+    (cond (= @opt nil) (reset! opt opt-arg)
+          (= @memory nil) nil
+          :else (do (reset! screen (@opt @memory @screen))
+                    (swap! precision (partial max @memory-precision))
+                    (reset! memory nil)
+                    (reset! opt opt-arg)))))
 
-(defn number-btn [d]
-  [:td [:input 
-        {:type "button" :value d :on-click
-         #(if @new-number?
-            (do (reset! screen d)
-                (reset! precision 0)
-                (reset! new-number? false))
-            (if (> @precision 0)
-              (do (swap! screen (fn [x] (+ x (/ d (Math/pow 10 @precision)))))
-                  (swap! precision inc))
-              (swap! screen (fn [x] (+ (* 10 x) d)))))}]])
+(defn number-handler [d]
+  "Returns a function that handles input number $d."
+  (fn []
+    (cond (and (= @memory nil) @opt) (do (reset! memory @screen)
+                                         (reset! memory-precision @precision)
+                                         (reset! screen d)
+                                         (reset! precision 0))
+          ;; (and (= @memory nil) (= @opt nil)) (do (reset! screen d)
+          ;;                                        (reset! precision 0)
+          ;;                                        (if (> @precision 0)
+          ;;                                          (do (swap! screen (fn [x] (+ x (/ d (Math/pow 10 @precision)))))
+          ;;                                              (swap! precision inc))
+          ;;                                          (swap! screen (fn [x] (+ (* 10 x) d)))))
+          :else (if (> @precision 0)
+                  (do (swap! screen (fn [x] (+ x (/ d (Math/pow 10 @precision)))))
+                      (swap! precision inc))
+                  (swap! screen (fn [x] (+ (* 10 x) d)))))))
 
 (defn operator-btn [opt-arg opt-symbol]
   [:td [:input
-        {:type "button" :value opt-symbol :on-click #(opt-run opt-arg)}]])
+        {:type "button" :value opt-symbol :on-click (operator-handler opt-arg)}]])
+(defn number-btn [d]
+  [:td [:input 
+        {:type "button" :value d :on-click (number-handler d)}]])
 
 (defn calc-app []
   [:table {:border "1"}
@@ -54,7 +64,7 @@
     [:tr
      [:td {:colspan "3"} [:input#result {:readonly "" :type "text" 
                                          :value (.toFixed @screen (max 0 (dec @precision)))}]]
-     [:td [:input {:type "button" :value "c" :on-click reset}]]]
+     [:td [:input {:type "button" :value "c" :on-click clear}]]]
     [:tr
      (for [d (range 1 4)] (number-btn d))
      (operator-btn / "/")]
@@ -78,9 +88,3 @@
 (defn ^:export reload []
       (.log js/console "reload...")
       (run))
-
-(defn add [a b]
-      (+ a b))
-
-(defn foo [x y]
-      (list y x))
