@@ -77,10 +77,13 @@
 
 (defn operator-btn [opt-arg opt-symbol]
   [:td [:input
-        {:type "button" :value opt-symbol :on-click (operator-handler opt-arg)}]])
+        {:type "button" :value opt-symbol
+         :on-click (operator-handler opt-arg)}]])
 (defn number-btn [d]
-  [:td [:input 
-        {:type "button" :value d :on-click (number-handler d)}]])
+  [:td [:input
+        {:type "button" :value d
+         :on-click (number-handler d)
+         :id (str "button" d)}]])
 
 (defn calc-app []
   [:html
@@ -107,14 +110,21 @@
        (operator-btn * "*")]
       [:tr [:input {:type "button" :value "MEM" :on-click (memory-handler :mem1)}]]
       ]]
-   [:ul
-    (for [string @history]
-      [:li string])]
+   ;; [:ul
+   ;;  (for [string @history]
+   ;;    [:li string])]
+   [:textarea {:value (clojure.string/join "\n" @history)}]
    ]
   )
 
 (defn ^:export run []
-      (rdom/render [calc-app] (js/document.getElementById "app")))
+  (set! (. js/document -onkeyup)
+        (fn [e]
+          (.log js/console (str (. e -which)))
+          (let [keycode (. e -which)]
+            (if (<= 96 keycode 105)
+              (. (js/document.getElementById (str "button" (- keycode 96))) click)))))
+  (rdom/render [calc-app] (js/document.getElementById "app")))
 
 (defn ^:export reload []
       (.log js/console "reload...")
